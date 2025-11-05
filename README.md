@@ -38,6 +38,7 @@ git clone https://github.com/whonixnetworks/initium.git && chmod +x initium/init
 
 2. Run it:
 ```shell
+cd initium
 ./initium/init.sh
 ```
 
@@ -45,7 +46,7 @@ git clone https://github.com/whonixnetworks/initium.git && chmod +x initium/init
 
 **Lazy Commands**
 ```shell
-git clone https://github.com/whonixnetworks/initium.git && chmod +x initium/init.sh && ./initium/init.sh
+git clone https://github.com/whonixnetworks/initium.git && chmod +x initium/init.sh && cd initium && ./init.sh
 ```
 
 ## What Gets Installed
