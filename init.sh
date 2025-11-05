@@ -443,29 +443,96 @@ add_new_user() {
 }
 
 # NEW: Manage SSH Keys
-manage_ssh_key() {
-   if ! whiptail --title "Add SSH Key" --yesno "This will add a public SSH key to your ~/.ssh/authorized_keys file.\n\nThis is recommended after hardening SSH.\n\nContinue?" 12 60; then
-       return
-   fi
+manage_ssh_keys() {
+    CHOICE=$(whiptail --title "Manage SSH Keys" --menu "Choose an option:" 18 70 5 \
+        "1" "Add Public Key from URL (e.g., GitHub)" \
+        "2" "Generate New SSH Key Pair" \
+        "3" "Add Local id_rsa.pub to authorized_keys" \
+        "4" "Paste Public Key Manually" \
+        "5" "Back to System Settings" 3>&1 1>&2 2>&3)
 
-   SSH_KEY=$(whiptail --title "Paste Public Key" --inputbox "Paste your full public SSH key (e.g., ssh-rsa AAAA...):" 10 60 3>&1 1>&2 2>&3)
+    exitstatus=$?
+    if [ $exitstatus != 0 ]; then
+        return
+    fi
 
-   if [ -z "$SSH_KEY" ]; then
-       return
-   fi
+    case $CHOICE in
+        1) # Add from URL
+            KEY_URL=$(whiptail --title "Add Key from URL" --inputbox "Enter the URL to fetch the public key from:\n(e.g., https://github.com/username.keys)" 10 60 "https://github.com/" 3>&1 1>&2 2>&3)
+            if [ -z "$KEY_URL" ]; then
+                return
+            fi
 
-   {
-       echo "30" ; sleep 0.5
-       mkdir -p ~/.ssh
-       echo "60" ; sleep 0.5
-       echo "$SSH_KEY" >> ~/.ssh/authorized_keys
-       echo "80" ; sleep 0.5
-       chmod 700 ~/.ssh
-       chmod 600 ~/.ssh/authorized_keys
-       echo "100" ; sleep 0.5
-   } | whiptail --title "Adding Key" --gauge "Securing key file..." 8 60 0
+            if ! whiptail --title "Confirm" --yesno "This will fetch keys from:\n$KEY_URL\n\nIf ~/.ssh/authorized_keys exists, it will be backed up to ~/.ssh/oldkeys.\n\nContinue?" 12 60; then
+                return
+            fi
 
-   whiptail --title "Success" --msgbox "Public key added to ~/.ssh/authorized_keys" 8 60
+            {
+                echo "10" ; sleep 0.5
+                mkdir -p ~/.ssh
+                chmod 700 ~/.ssh
+                echo "30" ; sleep 0.5
+                if [ -f ~/.ssh/authorized_keys ]; then
+                    mv ~/.ssh/authorized_keys ~/.ssh/oldkeys
+                fi
+                echo "60" ; sleep 0.5
+                curl -s "$KEY_URL" >> ~/.ssh/authorized_keys
+                echo "90" ; sleep 0.5
+                chmod 600 ~/.ssh/authorized_keys
+                echo "100" ; sleep 0.5
+            } | whiptail --title "Fetching Keys" --gauge "Downloading and saving keys..." 8 60 0
+            whiptail --title "Success" --msgbox "Keys from $KEY_URL added to ~/.ssh/authorized_keys." 8 60
+            ;;
+        2) # Generate new keys
+            if whiptail --title "Generate SSH Keys" --yesno "This will run 'ssh-keygen' to create a new SSH key pair.\n\nYou will be prompted for a file location and an optional passphrase.\n\nContinue?" 12 60; then
+                ssh-keygen -t rsa -b 4096
+                whiptail --title "Success" --msgbox "SSH key generation process finished.\n\nYour public key is likely at ~/.ssh/id_rsa.pub." 10 60
+            fi
+            ;;
+        3) # Add local id_rsa.pub
+            if [ ! -f ~/.ssh/id_rsa.pub ]; then
+                whiptail --title "Error" --msgbox "Could not find public key at ~/.ssh/id_rsa.pub.\n\nPlease generate one first." 10 60
+                return
+            fi
+
+            if whiptail --title "Add Local Key" --yesno "This will add the content of ~/.ssh/id_rsa.pub to ~/.ssh/authorized_keys.\n\nContinue?" 10 60; then
+                {
+                    echo "25" ; sleep 0.5
+                    mkdir -p ~/.ssh
+                    chmod 700 ~/.ssh
+                    echo "50" ; sleep 0.5
+                    cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys
+                    echo "75" ; sleep 0.5
+                    chmod 600 ~/.ssh/authorized_keys
+                    echo "100" ; sleep 0.5
+                } | whiptail --title "Adding Key" --gauge "Securing key file..." 8 60 0
+                whiptail --title "Success" --msgbox "Public key from ~/.ssh/id_rsa.pub added to authorized_keys." 8 60
+            fi
+            ;;
+        4) # Paste manually
+            SSH_KEY=$(whiptail --title "Paste Public Key" --inputbox "Paste your full public SSH key (e.g., ssh-rsa AAAA...):" 10 60 3>&1 1>&2 2>&3)
+
+            if [ -z "$SSH_KEY" ]; then
+                return
+            fi
+
+            {
+                echo "30" ; sleep 0.5
+                mkdir -p ~/.ssh
+                echo "60" ; sleep 0.5
+                echo "$SSH_KEY" >> ~/.ssh/authorized_keys
+                echo "80" ; sleep 0.5
+                chmod 700 ~/.ssh
+                chmod 600 ~/.ssh/authorized_keys
+                echo "100" ; sleep 0.5
+            } | whiptail --title "Adding Key" --gauge "Securing key file..." 8 60 0
+
+            whiptail --title "Success" --msgbox "Public key added to ~/.ssh/authorized_keys" 8 60
+            ;;
+        5) # Back
+            return
+            ;;
+    esac
 }
 
 # NEW: Install Fail2ban
@@ -561,7 +628,7 @@ system_settings_menu() {
            3) harden_ssh ;;
            4) configure_ufw ;;
            5) add_new_user ;;
-           6) manage_ssh_key ;;
+           6) manage_ssh_keys ;;
            7) install_fail2ban ;;
            8) change_ssh_port ;;
            9) configure_timezone ;;
