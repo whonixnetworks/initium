@@ -33,19 +33,19 @@ Its main functions include:
 
 1. Download the script:
 ```shell
-wget https://raw.githubusercontent.com/whonixnetworks/initium/main/init.sh && chmod +x init.sh
+git clone https://github.com/whonixnetworks/initium.git && chmod +x initium/init.sh
 ```
 
 2. Run it:
 ```shell
-./init.sh
+./initium/init.sh
 ```
 
 3. Use the arrow keys to navigate the menus and select the tasks you want to perform.
 
 **Lazy Commands**
 ```shell
-wget https://raw.githubusercontent.com/whonixnetworks/initium/main/init.sh && chmod +x init.sh && ./init.sh
+git clone https://github.com/whonixnetworks/initium.git && chmod +x initium/init.sh && ./initium/init.sh
 ```
 
 ## What Gets Installed
