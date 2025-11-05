@@ -120,7 +120,7 @@ _install_docker_logic_usermod() {
 }
 
 _install_dev_logic() {
-   sudo apt install -y python3 python3-pip npm speedtest-cli>/dev/null 2>&1
+   sudo apt install -y python3 python3-pip speedtest-cli>/dev/null 2>&1
 }
 
 # --- Installation UI Functions ---
