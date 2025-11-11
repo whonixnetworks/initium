@@ -236,20 +236,24 @@ gstat() {
         echo
     fi
 }
-motd-custom() {
-    local cpu_value="$(top -bn1 | grep "Cpu(s)" | sed "s/.*, *\([0-9.]*\)%* id.*/\1/" | awk '{print 100 - $1}')%"
-    local mem_value="$(free -h | awk '/^Mem:/ {print $3 "/" $2}')"
-    local disk_value="$(df -h / | awk 'NR==2 {print $5 " (" $3 "/" $2 ")"}')"
-    local public_ip="$(curl -s ifconfig.me 2>/dev/null || echo "Offline")"
-    local private_ip="$(hostname -I | awk '{print $1}')"
-
-    # Banner with hostname
-    echo -e "\033[1;34m$(figlet -f small "$(whoami) @ $(hostname)")\033[0m"
-
-    # Stats section (dark grey + light grey)
-    echo -e "\033[1;30mCPU:\033[0m \033[0;37m$cpu_value\033[0m  \
-\033[1;30mMEM:\033[0m \033[0;37m$mem_value\033[0m  \
-\033[1;30mDISK:\033[0m \033[0;37m$disk_value\033[0m  \
-\033[1;30mPublic IP:\033[0m \033[0;37m$public_ip\033[0m  \
-\033[1;30mPrivate IP:\033[0m \033[0;37m$private_ip\033[0m\n"
+get_service_status() {
+    local service_status=$(sudo systemctl is-active jellyfin)
+    local service_enabled=$(sudo systemctl is-enabled jellyfin)
+    local service_pid=$(sudo systemctl show --property=MainPID --value jellyfin)
+    
+    if [ "$service_status" = "active" ] && [ "$service_pid" -ne 0 ]; then
+        SERVICE_STATUS="${GREEN}RUNNING${RESET}"
+        PID_INFO="${DIM}(PID: ${service_pid})${RESET}"
+        UPTIME=$(ps -p "$service_pid" -o etime= 2>/dev/null | xargs)
+    else
+        SERVICE_STATUS="${RED}STOPPED${RESET}"
+        PID_INFO=""
+        UPTIME=""
+    fi
+    
+    if [ "$service_enabled" = "enabled" ]; then
+        AUTO_START="${GREEN}ENABLED${RESET}"
+    else
+        AUTO_START="${RED}DISABLED${RESET}"
+    fi
 }
