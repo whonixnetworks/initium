@@ -19,7 +19,55 @@ alias dcd='docker compose down'
 alias dcr='docker compose restart'
 alias dcp='docker compose pull'
 alias dcl='docker compose logs -f'
-alias dps="docker ps --format '{{.Names}}'"
+dps() {
+    RED="\033[1;31m"; GREEN="\033[1;32m"; YELLOW="\033[1;33m"
+    BLUE="\033[1;34m"; MAGENTA="\033[1;35m"; CYAN="\033[1;36m"
+    WHITE="\033[1;37m"; BRIGHT_CYAN="\033[0;96m"; BRIGHT_YELLOW="\033[0;93m"
+    DIM="\033[0;37m"; RESET="\033[0m"
+    
+    clear
+    
+    HEADER_TEXT="DOCKER CONTAINERS"
+    TERM_WIDTH=$COLUMNS
+    HEADER_PAD=$(( (TERM_WIDTH - ${#HEADER_TEXT} - 2) / 2 ))
+    HEADER_LINE=$(printf "%*s" $HEADER_PAD "" | tr " " "═")
+    echo -e "  ${CYAN}${HEADER_LINE} ${RED}${HEADER_TEXT}${RESET}${CYAN} ${HEADER_LINE}${RESET}\n"
+    
+    docker ps --format '{{.Names}}|{{.Status}}|{{.Ports}}|{{.Mounts}}' | while IFS='|' read -r name container_status ports mounts; do
+        uptime=$(echo "$container_status" | sed -E 's/Up ([^(]+).*/\1/' | xargs)
+        
+        if echo "$container_status" | grep -q "^Up"; then
+            STATUS_COLOR=$GREEN
+            STATUS_ICON="●"
+        else
+            STATUS_COLOR=$RED
+            STATUS_ICON="●"
+        fi
+        
+        echo -e "  ${DIM}${name}:${RESET} ${STATUS_COLOR}${STATUS_ICON}${RESET} ${WHITE}${uptime}${RESET}"
+        
+        if [ -n "$ports" ] && [ "$ports" != " " ]; then
+            port_display=$(echo "$ports" | sed -E 's/0\.0\.0\.0://g' | sed -E 's/:::/ /g' | tr ',' '\n' | head -1)
+            echo -e "    ${BRIGHT_CYAN}├─${RESET} ${MAGENTA}ports:${RESET} ${BRIGHT_YELLOW}${port_display}${RESET}"
+        else
+            network=$(docker inspect "$name" --format '{{range $k, $v := .NetworkSettings.Networks}}{{$k}}{{end}}' 2>/dev/null | head -1)
+            if [ -n "$network" ]; then
+                echo -e "    ${BRIGHT_CYAN}├─${RESET} ${MAGENTA}network:${RESET} ${BRIGHT_YELLOW}${network}${RESET}"
+            fi
+        fi
+        
+        if [ -n "$mounts" ] && [ "$mounts" != " " ]; then
+            mount_display=$(echo "$mounts" | tr ',' '\n' | head -1)
+            if [[ "$mount_display" == /* ]]; then
+                echo -e "    ${BRIGHT_CYAN}└─${RESET} ${MAGENTA}mount:${RESET} ${DIM}${mount_display}${RESET}"
+            else
+                echo -e "    ${BRIGHT_CYAN}└─${RESET} ${MAGENTA}volume:${RESET} ${DIM}${mount_display}${RESET}"
+            fi
+        fi
+        
+        echo
+    done
+}
 
 # Functions
 reload() {
