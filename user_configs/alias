@@ -1,0 +1,293 @@
+# System Aliases
+alias reboot='sudo reboot'
+alias shutdown='sudo shutdown -h now'
+alias c='clear'
+alias h='history'
+alias dfc='df -h .'
+alias du='du -ch'
+alias bat='batcat'
+alias py='python3'
+
+# Docker Aliases
+alias cdc='cat docker-compose.yml'
+alias ndc='nano docker-compose.yml'
+alias rmdc='rm docker-compose.yml'
+alias nenv='nano .env'
+alias rmenv='rm .env'
+alias dcu='docker compose up -d'
+alias dcd='docker compose down'
+alias dcr='docker compose restart'
+alias dcp='docker compose pull'
+alias dcl='docker compose logs -f'
+
+dps() {
+    RED="\033[1;31m"; GREEN="\033[1;32m"; YELLOW="\033[1;33m"
+    BLUE="\033[1;34m"; MAGENTA="\033[1;35m"; CYAN="\033[1;36m"
+    WHITE="\033[1;37m"; BRIGHT_CYAN="\033[0;96m"; BRIGHT_YELLOW="\033[0;93m"
+    DIM="\033[0;37m"; RESET="\033[0m"
+
+    clear
+
+    HEADER_TEXT="DOCKER CONTAINERS"
+    TERM_WIDTH=$COLUMNS
+    HEADER_PAD=$(( (TERM_WIDTH - ${#HEADER_TEXT} - 2) / 2 ))
+    HEADER_LINE=$(printf "%*s" $HEADER_PAD "" | tr " " "═")
+    echo -e "  ${CYAN}${HEADER_LINE} ${RED}${HEADER_TEXT}${RESET}${CYAN} ${HEADER_LINE}${RESET}\n"
+
+    docker ps --format '{{.Names}}|{{.Status}}|{{.Ports}}|{{.Mounts}}' | while IFS='|' read -r name container_status ports mounts; do
+        uptime=$(echo "$container_status" | sed -E 's/Up ([^(]+).*/\1/' | xargs)
+
+        if echo "$container_status" | grep -q "^Up"; then
+            STATUS_COLOR=$GREEN
+            STATUS_ICON="●"
+        else
+            STATUS_COLOR=$RED
+            STATUS_ICON="●"
+        fi
+
+        echo -e "  ${DIM}${name}:${RESET} ${STATUS_COLOR}${STATUS_ICON}${RESET} ${WHITE}${uptime}${RESET}"
+
+        if [ -n "$ports" ] && [ "$ports" != " " ]; then
+            port_display=$(echo "$ports" | sed -E 's/0\.0\.0\.0://g' | sed -E 's/:::/ /g' | tr ',' '\n' | head -1)
+            echo -e "    ${BRIGHT_CYAN}├─${RESET} ${MAGENTA}ports:${RESET} ${BRIGHT_YELLOW}${port_display}${RESET}"
+        else
+            network=$(docker inspect "$name" --format '{{range $k, $v := .NetworkSettings.Networks}}{{$k}}{{end}}' 2>/dev/null | head -1)
+            if [ -n "$network" ]; then
+                echo -e "    ${BRIGHT_CYAN}├─${RESET} ${MAGENTA}network:${RESET} ${BRIGHT_YELLOW}${network}${RESET}"
+            fi
+        fi
+
+        if [ -n "$mounts" ] && [ "$mounts" != " " ]; then
+            mount_display=$(echo "$mounts" | tr ',' '\n' | head -1)
+            if [[ "$mount_display" == /* ]]; then
+                echo -e "    ${BRIGHT_CYAN}└─${RESET} ${MAGENTA}mount:${RESET} ${DIM}${mount_display}${RESET}"
+            else
+                echo -e "    ${BRIGHT_CYAN}└─${RESET} ${MAGENTA}volume:${RESET} ${DIM}${mount_display}${RESET}"
+            fi
+        fi
+
+        echo
+    done
+}
+
+# ----------------------------
+# GIT
+gpsh() {
+    RED="\033[1;31m"; GREEN="\033[1;32m"; YELLOW="\033[1;33m"
+    CYAN="\033[1;36m"; WHITE="\033[1;37m"; MAGENTA="\033[1;35m"
+    BRIGHT_CYAN="\033[0;96m"; RESET="\033[0m"
+
+    COMMIT_MSG="$1"
+    if [ -z "$COMMIT_MSG" ]; then
+        echo -e "${RED}Error:${RESET} No commit message provided."
+        echo -e "${YELLOW}Usage:${RESET} gpsh \"commit message\""
+        return 1
+    fi
+
+    REPO_NAME=$(basename "$(git rev-parse --show-toplevel 2>/dev/null)")
+    CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
+
+    if [ -z "$REPO_NAME" ]; then
+        echo -e "${RED}Not a Git repository.${RESET}"
+        return 1
+    fi
+
+    git add . >/dev/null 2>&1
+    git commit -m "$COMMIT_MSG" >/dev/null 2>&1
+
+    clear
+    HEADER_TEXT="GIT PUSH"
+    TERM_WIDTH=$COLUMNS
+    HEADER_PAD=$(( (TERM_WIDTH - ${#HEADER_TEXT} - 2) / 2 ))  # 2 for spaces
+    HEADER_LINE=$(printf "%*s" $HEADER_PAD "" | tr " " "•")
+    echo -e "  ${CYAN}${HEADER_LINE} ${RED}${HEADER_TEXT}${RESET}${CYAN} ${HEADER_LINE}${RESET}\n"
+
+    echo -e "  ${GREEN}● Repository:${RESET}      ${WHITE}${REPO_NAME}${RESET}"
+    echo -e "  ${GREEN}● Branch:${RESET}          ${WHITE}${CURRENT_BRANCH}${RESET}"
+    echo -e "  ${GREEN}● Commit Message:${RESET}  ${WHITE}${COMMIT_MSG}${RESET}\n"
+
+    printf "%b" "  ${YELLOW}▼ Commit and push? (y/N):${RESET} "
+    read -r CONFIRM
+
+    if [[ "$CONFIRM" =~ ^[Yy]$ ]]; then
+        echo -e "  ${BRIGHT_CYAN}├─${RESET} ${MAGENTA}Pushing to origin/${CURRENT_BRANCH}...${RESET}"
+        git push origin "$CURRENT_BRANCH"
+        echo -e "  ${BRIGHT_CYAN}└─${RESET} ${GREEN}Push complete${RESET}"
+    else
+        echo -e "  ${BRIGHT_CYAN}├─${RESET} ${RED}Push cancelled${RESET}"
+        git reset --soft HEAD~1 >/dev/null 2>&1
+        echo -e "  ${BRIGHT_CYAN}└─${RESET} ${YELLOW}Changes remain staged${RESET}"
+    fi
+    echo
+}
+
+gstat() {
+    RED="\033[1;31m"; GREEN="\033[1;32m"; YELLOW="\033[1;33m"
+    CYAN="\033[1;36m"; WHITE="\033[1;37m"; MAGENTA="\033[1;35m"
+    BRIGHT_CYAN="\033[0;96m"; RESET="\033[0m"
+
+    PULL_NEEDED=false
+    REPO_NAME=$(basename "$(git rev-parse --show-toplevel 2>/dev/null)")
+    CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
+
+    if [ -z "$REPO_NAME" ]; then
+        echo -e "${RED}Not a Git repository.${RESET}"
+        return 1
+    fi
+
+    git fetch --quiet 2>/dev/null
+    LOCAL=$(git rev-parse @ 2>/dev/null)
+    REMOTE=$(git rev-parse @{u} 2>/dev/null)
+
+    if [ -z "$REMOTE" ]; then
+        PULL_STATUS="${YELLOW}No remote tracking branch${RESET}"
+    elif [ "$LOCAL" = "$REMOTE" ]; then
+        PULL_STATUS="${GREEN}Up to date${RESET}"
+    elif git merge-base --is-ancestor "$LOCAL" "$REMOTE" 2>/dev/null; then
+        BEHIND=$(git rev-list --count HEAD..@{u} 2>/dev/null)
+        PULL_STATUS="${RED}Pull needed (${BEHIND} commits behind)${RESET}"
+        PULL_NEEDED=true
+    elif git merge-base --is-ancestor "$REMOTE" "$LOCAL" 2>/dev/null; then
+        AHEAD=$(git rev-list --count @{u}..HEAD 2>/dev/null)
+        PULL_STATUS="${YELLOW}Push needed (${AHEAD} commits ahead)${RESET}"
+    else
+        PULL_STATUS="${RED}Diverged (fetch/merge needed)${RESET}"
+        PULL_NEEDED=true
+    fi
+
+    LAST_COMMIT=$(git log -1 --pretty=format:"%ad^%s" --date=format:'%Y-%m-%d %H:%M:%S' HEAD)
+    LAST_COMMIT_DATE=$(echo "$LAST_COMMIT" | cut -d'^' -f1)
+    LAST_COMMIT_MESSAGE=$(echo "$LAST_COMMIT" | cut -d'^' -f2)
+
+    clear
+    HEADER_TEXT="GIT STATUS"
+    TERM_WIDTH=$COLUMNS
+    HEADER_PAD=$(( (TERM_WIDTH - ${#HEADER_TEXT} - 2) / 2 ))
+    HEADER_LINE=$(printf "%*s" $HEADER_PAD "" | tr " " "•")
+    echo -e "  ${CYAN}${HEADER_LINE} ${RED}${HEADER_TEXT}${RESET}${CYAN} ${HEADER_LINE}${RESET}\n"
+
+    echo -e "  ${GREEN}● Repository:${RESET}      ${WHITE}${REPO_NAME}${RESET}"
+    echo -e "  ${GREEN}● Branch:${RESET}          ${WHITE}${CURRENT_BRANCH}${RESET}"
+    echo -e "  ${GREEN}● Remote Status:${RESET}   ${PULL_STATUS}\n"
+
+    echo -e "  ${YELLOW}▼ LAST COMMIT:${RESET}"
+    echo -e "    ${BRIGHT_CYAN}├─${RESET} ${MAGENTA}Date:${RESET}    ${WHITE}${LAST_COMMIT_DATE}${RESET}"
+    echo -e "    ${BRIGHT_CYAN}└─${RESET} ${MAGENTA}Message:${RESET} ${WHITE}${LAST_COMMIT_MESSAGE}${RESET}\n"
+
+    if $PULL_NEEDED; then
+        printf "%b" "  ${YELLOW}▼ Pull is needed. Run 'git pull' now? (y/N):${RESET} "
+        read -r choice
+        if [[ "$choice" =~ ^[Yy]$ ]]; then
+            echo -e "  ${BRIGHT_CYAN}└─${RESET} ${GREEN}Running 'git pull'...${RESET}"
+            git pull
+        else
+            echo -e "  ${BRIGHT_CYAN}└─${RESET} ${YELLOW}Skipping pull${RESET}"
+        fi
+        echo
+    fi
+}
+
+# ----
+
+#!/bin/bash
+# i3 Hybrid Desktop Environment - Help Reference
+
+help!() {
+    RED="\033[1;31m"; GREEN="\033[1;32m"; YELLOW="\033[1;33m"
+    CYAN="\033[1;36m"; WHITE="\033[1;37m"; MAGENTA="\033[1;35m"
+    BRIGHT_CYAN="\033[0;96m"; RESET="\033[0m"; BLUE="\033[1;34m"
+
+    clear
+    HEADER_TEXT="i3 ENVIRONMENT GUIDE"
+    TERM_WIDTH=$COLUMNS
+    HEADER_PAD=$(( (TERM_WIDTH - ${#HEADER_TEXT} - 2) / 2 ))
+    HEADER_LINE=$(printf "%*s" $HEADER_PAD "" | tr " " "•")
+    echo -e "  ${CYAN}${HEADER_LINE} ${RED}${HEADER_TEXT}${RESET}${CYAN} ${HEADER_LINE}${RESET}\n"
+
+    # LAUNCHING APPLICATIONS
+    echo -e "  ${YELLOW}▼ LAUNCHING APPLICATIONS:${RESET}"
+    echo -e "    ${BRIGHT_CYAN}├─${RESET} ${WHITE}firefox &${RESET}        ${MAGENTA}Open Firefox${RESET}"
+    echo -e "    ${BRIGHT_CYAN}├─${RESET} ${WHITE}pcmanfm &${RESET}        ${MAGENTA}Open file manager${RESET}"
+    echo -e "    ${BRIGHT_CYAN}├─${RESET} ${WHITE}vlc &${RESET}            ${MAGENTA}Open VLC media player${RESET}"
+    echo -e "    ${BRIGHT_CYAN}├─${RESET} ${WHITE}code &${RESET}           ${MAGENTA}Open VS Code${RESET}"
+    echo -e "    ${BRIGHT_CYAN}└─${RESET} ${GREEN}Tip:${RESET} ${WHITE}Always use '&' to background apps${RESET}\n"
+
+    # WINDOW MANAGEMENT
+    echo -e "  ${YELLOW}▼ WINDOW MANAGEMENT:${RESET}"
+    echo -e "    ${BRIGHT_CYAN}├─${RESET} ${WHITE}Super + Shift + Q${RESET}  ${MAGENTA}Kill focused window${RESET}"
+    echo -e "    ${BRIGHT_CYAN}├─${RESET} ${WHITE}Alt + F4${RESET}           ${MAGENTA}Kill focused window${RESET}"
+    echo -e "    ${BRIGHT_CYAN}├─${RESET} ${WHITE}Super + F${RESET}          ${MAGENTA}Toggle fullscreen${RESET}"
+    echo -e "    ${BRIGHT_CYAN}├─${RESET} ${WHITE}Super + Space${RESET}      ${MAGENTA}Toggle floating/tiling${RESET}"
+    echo -e "    ${BRIGHT_CYAN}└─${RESET} ${WHITE}Super + Shift + Space${RESET} ${MAGENTA}Toggle focus mode${RESET}\n"
+
+    # NAVIGATION
+    echo -e "  ${YELLOW}▼ NAVIGATION & FOCUS:${RESET}"
+    echo -e "    ${BRIGHT_CYAN}├─${RESET} ${WHITE}Alt + Tab${RESET}          ${MAGENTA}Next workspace${RESET}"
+    echo -e "    ${BRIGHT_CYAN}├─${RESET} ${WHITE}Alt + Shift + Tab${RESET}  ${MAGENTA}Previous workspace${RESET}"
+    echo -e "    ${BRIGHT_CYAN}├─${RESET} ${WHITE}Super + 1-5${RESET}        ${MAGENTA}Switch to workspace 1-5${RESET}"
+    echo -e "    ${BRIGHT_CYAN}├─${RESET} ${WHITE}Super + Arrow Keys${RESET} ${MAGENTA}Focus window (direction)${RESET}"
+    echo -e "    ${BRIGHT_CYAN}└─${RESET} ${WHITE}Super + H/J/K/L${RESET}    ${MAGENTA}Focus window (vim keys)${RESET}\n"
+
+    # MOVING WINDOWS
+    echo -e "  ${YELLOW}▼ MOVING WINDOWS:${RESET}"
+    echo -e "    ${BRIGHT_CYAN}├─${RESET} ${WHITE}Super + Shift + Arrow${RESET}  ${MAGENTA}Move window (direction)${RESET}"
+    echo -e "    ${BRIGHT_CYAN}├─${RESET} ${WHITE}Super + Shift + H/J/K/L${RESET} ${MAGENTA}Move window (vim keys)${RESET}"
+    echo -e "    ${BRIGHT_CYAN}├─${RESET} ${WHITE}Super + Shift + 1-5${RESET}    ${MAGENTA}Move to workspace 1-5${RESET}"
+    echo -e "    ${BRIGHT_CYAN}└─${RESET} ${WHITE}Super + Mouse Drag${RESET}     ${MAGENTA}Drag floating windows${RESET}\n"
+
+    # LAYOUT
+    echo -e "  ${YELLOW}▼ LAYOUT MODES:${RESET}"
+    echo -e "    ${BRIGHT_CYAN}├─${RESET} ${WHITE}Super + B${RESET}  ${MAGENTA}Split horizontal${RESET}"
+    echo -e "    ${BRIGHT_CYAN}├─${RESET} ${WHITE}Super + V${RESET}  ${MAGENTA}Split vertical${RESET}"
+    echo -e "    ${BRIGHT_CYAN}├─${RESET} ${WHITE}Super + S${RESET}  ${MAGENTA}Stacking layout${RESET}"
+    echo -e "    ${BRIGHT_CYAN}├─${RESET} ${WHITE}Super + W${RESET}  ${MAGENTA}Tabbed layout${RESET}"
+    echo -e "    ${BRIGHT_CYAN}├─${RESET} ${WHITE}Super + E${RESET}  ${MAGENTA}Toggle split layout${RESET}"
+    echo -e "    ${BRIGHT_CYAN}└─${RESET} ${WHITE}Super + R${RESET}  ${MAGENTA}Resize mode (arrows to resize)${RESET}\n"
+
+    # TERMINAL SHORTCUTS
+    echo -e "  ${YELLOW}▼ TERMINAL SHORTCUTS:${RESET}"
+    echo -e "    ${BRIGHT_CYAN}├─${RESET} ${WHITE}Ctrl + Shift + C${RESET}  ${MAGENTA}Copy${RESET}"
+    echo -e "    ${BRIGHT_CYAN}├─${RESET} ${WHITE}Ctrl + Shift + V${RESET}  ${MAGENTA}Paste${RESET}"
+    echo -e "    ${BRIGHT_CYAN}├─${RESET} ${WHITE}Ctrl + L${RESET}          ${MAGENTA}Clear terminal${RESET}"
+    echo -e "    ${BRIGHT_CYAN}└─${RESET} ${WHITE}Ctrl + D${RESET}          ${MAGENTA}Exit/logout${RESET}\n"
+
+    # SYSTEM
+    echo -e "  ${YELLOW}▼ SYSTEM CONTROLS:${RESET}"
+    echo -e "    ${BRIGHT_CYAN}├─${RESET} ${WHITE}Super + D${RESET}          ${MAGENTA}Launch Rofi app menu${RESET}"
+    echo -e "    ${BRIGHT_CYAN}├─${RESET} ${WHITE}Super + Shift + C${RESET}  ${MAGENTA}Reload i3 config${RESET}"
+    echo -e "    ${BRIGHT_CYAN}├─${RESET} ${WHITE}Super + Shift + R${RESET}  ${MAGENTA}Restart i3${RESET}"
+    echo -e "    ${BRIGHT_CYAN}└─${RESET} ${WHITE}Super + Shift + E${RESET}  ${MAGENTA}Exit to console${RESET}\n"
+
+    # CUSTOM ALIASES
+    echo -e "  ${YELLOW}▼ CUSTOM ALIASES:${RESET}"
+    echo -e "    ${BRIGHT_CYAN}├─${RESET} ${WHITE}ff${RESET}         ${MAGENTA}Launch Firefox (clean)${RESET}"
+    echo -e "    ${BRIGHT_CYAN}├─${RESET} ${WHITE}fm${RESET}         ${MAGENTA}Launch file manager (clean)${RESET}"
+    echo -e "    ${BRIGHT_CYAN}├─${RESET} ${WHITE}run <app>${RESET}  ${MAGENTA}Launch any app (backgrounded)${RESET}"
+    echo -e "    ${BRIGHT_CYAN}├─${RESET} ${WHITE}gpsh \"msg\"${RESET} ${MAGENTA}Git add, commit, push${RESET}"
+    echo -e "    ${BRIGHT_CYAN}├─${RESET} ${WHITE}gstat${RESET}      ${MAGENTA}Git status with styling${RESET}"
+    echo -e "    ${BRIGHT_CYAN}└─${RESET} ${WHITE}help!${RESET}      ${MAGENTA}Show this guide${RESET}\n"
+
+    # TOUCHPAD
+    echo -e "  ${YELLOW}▼ TOUCHPAD:${RESET}"
+    echo -e "    ${BRIGHT_CYAN}├─${RESET} ${GREEN}Tap to click:${RESET}      ${WHITE}Enabled${RESET}"
+    echo -e "    ${BRIGHT_CYAN}├─${RESET} ${GREEN}Natural scrolling:${RESET} ${WHITE}Enabled${RESET}"
+    echo -e "    ${BRIGHT_CYAN}└─${RESET} ${GREEN}Two-finger scroll:${RESET} ${WHITE}Enabled${RESET}\n"
+
+    # TIPS
+    echo -e "  ${YELLOW}▼ PRO TIPS:${RESET}"
+    echo -e "    ${BRIGHT_CYAN}├─${RESET} ${BLUE}Terminal is your home screen - always open${RESET}"
+    echo -e "    ${BRIGHT_CYAN}├─${RESET} ${BLUE}Close laptop lid = server mode (keeps running)${RESET}"
+    echo -e "    ${BRIGHT_CYAN}├─${RESET} ${BLUE}Open lid = hybrid desktop with terminal focus${RESET}"
+    echo -e "    ${BRIGHT_CYAN}├─${RESET} ${BLUE}Use workspaces (1-5) to organize windows${RESET}"
+    echo -e "    ${BRIGHT_CYAN}└─${RESET} ${BLUE}Apps launched from terminal stay detached${RESET}\n"
+
+    # CONFIG LOCATIONS
+    echo -e "  ${YELLOW}▼ CONFIG FILES:${RESET}"
+    echo -e "    ${BRIGHT_CYAN}├─${RESET} ${WHITE}~/.config/i3/config${RESET}          ${MAGENTA}i3 window manager${RESET}"
+    echo -e "    ${BRIGHT_CYAN}├─${RESET} ${WHITE}~/.config/alacritty/alacritty.toml${RESET} ${MAGENTA}Terminal config${RESET}"
+    echo -e "    ${BRIGHT_CYAN}├─${RESET} ${WHITE}~/.bashrc${RESET}                    ${MAGENTA}Shell config${RESET}"
+    echo -e "    ${BRIGHT_CYAN}└─${RESET} ${WHITE}~/.xinitrc${RESET}                   ${MAGENTA}X startup${RESET}\n"
+
+    FOOTER_LINE=$(printf "%*s" $TERM_WIDTH "" | tr " " "•")
+    echo -e "  ${CYAN}${FOOTER_LINE}${RESET}\n"
+}
