@@ -1,4 +1,4 @@
-6#!/usr/bin/env bash
+#!/usr/bin/env bash
 # initium — Ubuntu system setup and configuration script
 # author: greedy
 # version: 2.1.0
