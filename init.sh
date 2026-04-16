@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # initium — Ubuntu system setup and configuration script
 # author: greedy
-# version: 2.1.0
+# version: 2.4.0
 
 set -euo pipefail
 
@@ -54,7 +54,7 @@ die() {
 
 # Help system
 show_help() {
-    show_header "Initium v2.1.0"
+    show_header "Initium v2.4.0"
 
     echo -e "${CYAN}Usage:${NC}"
     echo -e "  ${WHITE}./init.sh [OPTIONS]${NC}"
@@ -88,9 +88,6 @@ HOSTNAME=$(hostname)
 SSH_PATH="$HOME_DIR/.ssh"
 THEME_CONFIGS_DIR="$WORK_DIR/theme/configs"
 FONTS_DIR="$WORK_DIR/theme/fonts"
-RCLONE_DIR="$HOME_DIR/.config/rclone"
-RCLONE_CONF="$RCLONE_DIR/rclone.conf"
-RCLONE_BAK="$RCLONE_DIR/rclone.bak"
 
 INSTALL_STATUS=()
 
@@ -103,7 +100,7 @@ spinner() {
     
     tput civis
     
-    while kill -0 $pid 2>/dev/null; do
+    while kill -0 "$pid" 2>/dev/null; do
         temp=${spinstr#?}
         printf " ${BLUE}[%c]${NC} %s\r" "$spinstr" "$message"
         spinstr=$temp${spinstr%"$temp"}
@@ -111,7 +108,7 @@ spinner() {
     done
     tput cnorm
     printf "\r\033[K"
-    wait $pid
+    wait "$pid"
     return $?
 }
 
@@ -121,7 +118,7 @@ run_with_spinner() {
     local cmd="$@"
     eval "$cmd" &
     local pid=$!
-    spinner $pid "$message"
+    spinner "$pid" "$message"
     local exit_code=$?
     return $exit_code
 }
@@ -168,112 +165,10 @@ collect_configuration() {
     echo -e "${MAGENTA}=== Shell & Development Setup ===${NC}"
     SHELL_SETUP=$(get_yn "Setup ZSH, Tmux & Powerline?")
     echo
-    
-    # Git Configuration Section
-    echo -e "${MAGENTA}=== Git Configuration ===${NC}"
-    CONFIGURE_GIT=$(get_yn "Configure global git username & email?")
-    
-    if [[ "$CONFIGURE_GIT" == "y" ]]; then
-        echo
-        read -rp "$(echo -e "${CYAN}Git username:${NC} ")" GIT_USERNAME
-        read -rp "$(echo -e "${CYAN}Git email:${NC} ")" GIT_EMAIL
-        
-        if [[ -z "$GIT_USERNAME" ]] || [[ -z "$GIT_EMAIL" ]]; then
-            log_warning "Username or email empty, skipping git configuration"
-            CONFIGURE_GIT="n"
-            GIT_USERNAME=""
-            GIT_EMAIL=""
-        fi
-    fi
-    echo
-    
-    # GitHub Authentication Section
-    echo -e "${MAGENTA}=== GitHub Configuration ===${NC}"
-    SETUP_GITHUB=$(get_yn "Configure GitHub? (Web login or GPG Key)")
-    
-    if [[ "$SETUP_GITHUB" == "y" ]]; then
-        echo
-        GITHUB_METHOD=$(get_yn "Create a new SSH key and add to GitHub?")
-        
-        if [[ "$GITHUB_METHOD" == "y" ]]; then
-            echo
-            read -rp "$(echo -e "${CYAN}GitHub GPG token:${NC} ")" GITHUB_TOKEN
-            
-            if [[ -z "$GITHUB_TOKEN" ]]; then
-                log_warning "No token provided, skipping GitHub authentication"
-                SETUP_GITHUB="n"
-                GITHUB_METHOD="n"
-            else
-                # If git config wasn't set yet, prompt for it now
-                if [[ "$CONFIGURE_GIT" != "y" ]] || [[ -z "$GIT_USERNAME" ]]; then
-                    echo
-                    log_info "GitHub authentication requires git configuration"
-                    read -rp "$(echo -e "${CYAN}Git username:${NC} ")" GIT_USERNAME
-                    read -rp "$(echo -e "${CYAN}Git email:${NC} ")" GIT_EMAIL
-                    
-                    if [[ -n "$GIT_USERNAME" ]] && [[ -n "$GIT_EMAIL" ]]; then
-                        CONFIGURE_GIT="y"
-                    else
-                        log_warning "Git configuration incomplete, skipping GitHub auth"
-                        SETUP_GITHUB="n"
-                        GITHUB_METHOD="n"
-                    fi
-                fi
-            fi
-        fi
-    fi
-    echo
-    
-    # Pull Authorized Keys Section
-    echo -e "${MAGENTA}=== SSH Key Management ===${NC}"
-    PULL_AUTH_KEYS=$(get_yn "Pull authorized_keys from Git provider?")
-    
-    if [[ "$PULL_AUTH_KEYS" == "y" ]]; then
-        # Try to use existing username first
-        if [[ -n "$GIT_USERNAME" ]]; then
-            USE_EXISTING=$(get_yn "Use git username '$GIT_USERNAME' for keys?")
-            if [[ "$USE_EXISTING" == "y" ]]; then
-                KEYS_USERNAME="$GIT_USERNAME"
-                log_info "Using username: $KEYS_USERNAME"
-            else
-                echo
-                read -rp "$(echo -e "${CYAN}GitHub username for SSH keys:${NC} ")" KEYS_USERNAME
-            fi
-        else
-            echo
-            read -rp "$(echo -e "${CYAN}GitHub username for SSH keys:${NC} ")" KEYS_USERNAME
-        fi
-        
-        if [[ -z "$KEYS_USERNAME" ]]; then
-            log_warning "No username provided, skipping key import"
-            PULL_AUTH_KEYS="n"
-        else
-            # Default provider
-            KEYS_PROVIDER="github.com"
-            log_info "Using default provider: $KEYS_PROVIDER"
-        fi
-    fi
-    echo
-    
-    # Rclone configuration
-    echo -e "${MAGENTA}=== Cloud Storage ===${NC}"
-    PASTE_RCLONE=$(get_yn "Paste rclone config?")
-    
-    if [[ "$PASTE_RCLONE" == "y" ]]; then
-        echo
-        echo -e "${CYAN}Paste your rclone config and press Ctrl+D when done:${NC}"
-        RCLONE_CONTENT=$(cat)
-        if [[ -z "$RCLONE_CONTENT" ]]; then
-            PASTE_RCLONE="n"
-            log_warning "No config pasted, skipping rclone setup"
-        fi
-    fi
-    echo
-    
+
     # System configuration
     echo -e "${MAGENTA}=== System Configuration ===${NC}"
     DRIVER_INSTALL=$(get_yn "Install drivers & firmware?")
-    DESKTOP_INSTALL=$(get_yn "Install XFCE4 desktop environment?")
     echo
 }
 
@@ -299,34 +194,9 @@ show_configuration_summary() {
     echo -e "${CYAN}Shell & Development:${NC}"
     [[ "$SHELL_SETUP" == "y" ]] && echo -e "  ${GREEN}✓${NC} ZSH, Tmux & Powerline" || echo -e "  ${GRAY}✗${NC} ZSH, Tmux & Powerline"
     echo
-    
-    echo -e "${CYAN}Git Configuration:${NC}"
-    if [[ "$CONFIGURE_GIT" == "y" ]]; then
-        echo -e "  ${GREEN}✓${NC} Git config ($GIT_USERNAME, $GIT_EMAIL)"
-    else
-        echo -e "  ${GRAY}✗${NC} Git config"
-    fi
-    
-    if [[ "$SETUP_GITHUB" == "y" ]] && [[ "$GITHUB_METHOD" == "y" ]]; then
-        echo -e "  ${GREEN}✓${NC} GitHub SSH authentication"
-    else
-        echo -e "  ${GRAY}✗${NC} GitHub SSH authentication"
-    fi
-    
-    if [[ "$PULL_AUTH_KEYS" == "y" ]]; then
-        echo -e "  ${GREEN}✓${NC} Pull SSH keys from $KEYS_PROVIDER ($KEYS_USERNAME)"
-    else
-        echo -e "  ${GRAY}✗${NC} Pull SSH keys"
-    fi
-    echo
-    
-    echo -e "${CYAN}Cloud Storage:${NC}"
-    [[ "$PASTE_RCLONE" == "y" ]] && echo -e "  ${GREEN}✓${NC} Rclone configuration" || echo -e "  ${GRAY}✗${NC} Rclone configuration"
-    echo
-    
+
     echo -e "${CYAN}System Configuration:${NC}"
     [[ "$DRIVER_INSTALL" == "y" ]] && echo -e "  ${GREEN}✓${NC} Drivers & firmware" || echo -e "  ${GRAY}✗${NC} Drivers & firmware"
-    [[ "$DESKTOP_INSTALL" == "y" ]] && echo -e "  ${GREEN}✓${NC} XFCE4 desktop environment" || echo -e "  ${GRAY}✗${NC} XFCE4 desktop environment"
     echo
     
     echo -e "${BLUE}========================================${NC}"
@@ -363,7 +233,7 @@ install_packages() {
     [[ "$PACKAGE_INSTALL" != "y" ]] && return
     
     log_info "Installing additional packages..."
-    if run_with_spinner "Installing development tools and utilities..." "sudo apt install -y dconf-cli htop gh locate fzf ansiweather wireguard cowsay wireguard-tools bc tmux snapd iotop iftop coreutils rclone rsync figlet p7zip-full wipe lolcat python3-full python3-pip speedtest-cli > /dev/null 2>&1"; then
+    if run_with_spinner "Installing development tools and utilities..." "sudo apt install -y dconf-cli htop gh locate fzf ansiweather wireguard cowsay wireguard-tools bc tmux snapd iotop iftop coreutils rsync figlet p7zip-full wipe lolcat python3-full python3-pip speedtest-cli > /dev/null 2>&1"; then
         log_success "Additional packages installed"
         track_status "Additional packages installed"
     else
@@ -481,168 +351,7 @@ EOF
     fi
 }
 
-# Configure Git
-configure_git() {
-    [[ "$CONFIGURE_GIT" != "y" ]] || [[ -z "$GIT_USERNAME" ]] || [[ -z "$GIT_EMAIL" ]] && return
-    
-    log_info "Configuring Git..."
-    git config --global user.name "$GIT_USERNAME" > /dev/null 2>&1
-    git config --global user.email "$GIT_EMAIL" > /dev/null 2>&1
-    log_success "Git configured with username and email"
-    track_status "Git config set ($GIT_USERNAME, $GIT_EMAIL)"
-}
 
-# Setup GitHub Authentication
-setup_github_auth() {
-    [[ "$SETUP_GITHUB" != "y" ]] || [[ "$GITHUB_METHOD" != "y" ]] || [[ -z "$GITHUB_TOKEN" ]] && return
-    
-    log_info "Setting up GitHub authentication..."
-    
-    # Setup SSH
-    SSH_KEY_FILE="$SSH_PATH/gh_${USER}_${HOSTNAME}"
-    mkdir -p "$SSH_PATH"
-    chmod 700 "$SSH_PATH"
-    
-    if [ ! -f "$SSH_KEY_FILE" ]; then
-        ssh-keygen -t ed25519 -C "${GIT_EMAIL:-$USER@$HOSTNAME}" -f "$SSH_KEY_FILE" -N "" -q > /dev/null 2>&1
-        chmod 600 "$SSH_KEY_FILE"
-        chmod 644 "${SSH_KEY_FILE}.pub"
-        log_success "SSH key generated"
-    else
-        log_info "SSH key already exists"
-    fi
-    
-    # Add to SSH agent
-    eval "$(ssh-agent -s)" > /dev/null 2>&1
-    ssh-add "$SSH_KEY_FILE" > /dev/null 2>&1 || true
-    
-    # Configure SSH config
-    if ! grep -q "Host github.com" ~/.ssh/config 2>/dev/null; then
-        cat >> ~/.ssh/config << EOF
-
-Host *
-    AddKeysToAgent yes
-    IdentityFile $SSH_KEY_FILE
-
-Host github.com
-    HostName github.com
-    User git
-    IdentityFile $SSH_KEY_FILE
-    IdentitiesOnly yes
-
-Host $HOSTNAME
-    HostName $HOSTNAME
-    User $USER
-    IdentityFile $SSH_KEY_FILE
-    IdentitiesOnly yes
-EOF
-        chmod 600 ~/.ssh/config
-        log_success "SSH config created"
-    else
-        log_info "SSH config already exists"
-    fi
-    
-    # Create system SSH key if needed
-    if [ ! -f "$SSH_PATH/id_ed25519" ]; then
-        ssh-keygen -t ed25519 -C "$USER@$HOSTNAME-system" -f "$SSH_PATH/id_ed25519" -N "" -q > /dev/null 2>&1
-        chmod 600 "$SSH_PATH/id_ed25519"
-        chmod 644 "$SSH_PATH/id_ed25519.pub"
-        
-        [ ! -f "$SSH_PATH/authorized_keys" ] && touch "$SSH_PATH/authorized_keys" && chmod 600 "$SSH_PATH/authorized_keys"
-        cat "$SSH_PATH/id_ed25519.pub" >> "$SSH_PATH/authorized_keys"
-        log_success "System SSH key created"
-    fi
-    
-    # Authenticate with GitHub
-    if command -v gh >/dev/null 2>&1; then
-        if echo "$GITHUB_TOKEN" | gh auth login --git-protocol ssh --with-token > /dev/null 2>&1; then
-            log_success "GitHub authenticated successfully"
-            
-            # Add SSH key to GitHub
-            if [[ -f "${SSH_KEY_FILE}.pub" ]]; then
-                if gh ssh-key add "${SSH_KEY_FILE}.pub" --title "${USER}@${HOSTNAME} $(date +%Y-%m-%d)" --type authentication > /dev/null 2>&1; then
-                    log_success "SSH key added to GitHub"
-                else
-                    log_warning "Failed to add SSH key to GitHub (may already exist)"
-                fi
-            fi
-            track_status "GitHub SSH configured & authenticated"
-        else
-            log_error "GitHub authentication failed"
-            track_status "GitHub authentication: FAILED"
-        fi
-    else
-        log_error "GitHub CLI not found"
-        track_status "GitHub authentication: FAILED (gh not installed)"
-    fi
-}
-
-
-# Pull Authorized Keys from GitHub
-pull_authorized_keys() {
-    [[ "$PULL_AUTH_KEYS" != "y" ]] || [[ -z "$KEYS_USERNAME" ]] && return
-    
-    log_info "Pulling authorized_keys from $KEYS_PROVIDER for user: $KEYS_USERNAME..."
-    
-    # Ensure SSH directory exists
-    mkdir -p "$SSH_PATH"
-    chmod 700 "$SSH_PATH"
-    
-    # Create authorized_keys if it doesn't exist
-    if [ ! -f "$SSH_PATH/authorized_keys" ]; then
-        touch "$SSH_PATH/authorized_keys"
-        chmod 600 "$SSH_PATH/authorized_keys"
-    fi
-    
-    # Fetch keys from provider
-    KEYS_URL="https://${KEYS_PROVIDER}/${KEYS_USERNAME}.keys"
-    TEMP_KEYS=$(mktemp)
-    
-    if curl -fsSL "$KEYS_URL" -o "$TEMP_KEYS" 2>/dev/null; then
-        if [[ -s "$TEMP_KEYS" ]]; then
-            # Read existing keys to check for duplicates
-            EXISTING_KEYS=$(cat "$SSH_PATH/authorized_keys" 2>/dev/null || echo "")
-            
-            # Counter for new keys added
-            NEW_KEY_COUNT=0
-            
-            # Add comment header
-            echo "" >> "$SSH_PATH/authorized_keys"
-            echo "# Keys from $KEYS_PROVIDER/$KEYS_USERNAME (added $(date +%Y-%m-%d))" >> "$SSH_PATH/authorized_keys"
-            
-            # Process each key
-            while IFS= read -r key; do
-                # Skip empty lines
-                [[ -z "$key" ]] && continue
-                
-                # Check if key already exists
-                if ! echo "$EXISTING_KEYS" | grep -qF "$key"; then
-                    echo "$key" >> "$SSH_PATH/authorized_keys"
-                    ((NEW_KEY_COUNT++))
-                fi
-            done < "$TEMP_KEYS"
-            
-            TOTAL_KEY_COUNT=$(wc -l < "$TEMP_KEYS")
-            
-            if [[ $NEW_KEY_COUNT -gt 0 ]]; then
-                log_success "Added $NEW_KEY_COUNT new SSH key(s) ($TOTAL_KEY_COUNT total found)"
-                track_status "Authorized keys imported ($NEW_KEY_COUNT new, $TOTAL_KEY_COUNT total)"
-            else
-                log_info "No new keys to add (all $TOTAL_KEY_COUNT keys already present)"
-                track_status "Authorized keys checked (no new keys)"
-            fi
-        else
-            log_warning "No SSH keys found for $KEYS_PROVIDER user: $KEYS_USERNAME"
-            track_status "Authorized keys: No keys found"
-        fi
-    else
-        log_error "Failed to fetch SSH keys from $KEYS_URL"
-        track_status "Authorized keys: FAILED"
-    fi
-    
-    # Clean up temp file
-    rm -f "$TEMP_KEYS"
-}
 
 # System Configuration
 configure_system() {
@@ -732,7 +441,6 @@ install_drivers() {
     fi
     
     # Ubuntu drivers
-    # Ubuntu drivers
     if run_with_spinner "Installing Ubuntu drivers..." "sudo apt install -y ubuntu-drivers-common > /dev/null 2>&1 && sudo ubuntu-drivers autoinstall > /dev/null 2>&1"; then
         log_success "Ubuntu drivers installed"
     else
@@ -747,20 +455,7 @@ install_drivers() {
     track_status "Drivers & firmware installed"
 }
 
-# Desktop Environment Installation
-install_desktop() {
-    [[ "$DESKTOP_INSTALL" != "y" ]] && return
-    
-    log_info "Installing XFCE4 desktop environment..."
-    if run_with_spinner "Installing XFCE4 and desktop packages..." "sudo apt install -y xfce4 xfce4-goodies lightdm lightdm-gtk-greeter firefox network-manager-gnome pavucontrol xarchiver mousepad thunar-archive-plugin file-roller > /dev/null 2>&1"; then
-        sudo systemctl enable lightdm > /dev/null 2>&1 || true
-        log_success "XFCE4 desktop environment installed"
-        track_status "XFCE4 desktop installed"
-    else
-        log_error "Failed to install XFCE4"
-        track_status "XFCE4 desktop: FAILED"
-    fi
-}
+
 
 # Shell Setup (ZSH, Tmux, Powerline)
 setup_shell() {
@@ -892,7 +587,7 @@ bind Space run-shell "tmux split-window -h \; tmux select-pane -t 0 \; tmux spli
 bind m run-shell "SESSION_NAME=\"session-$(date +%s)\"; tmux new-session -d -s \"\$SESSION_NAME\" \; tmux split-window -h -t \"\$SESSION_NAME\" \; tmux select-pane -t 0 \; tmux split-window -v \; tmux select-pane -t 2 \; tmux split-window -v \; tmux select-pane -t 0 \; tmux switch-client -t \"\$SESSION_NAME\""
 bind M command-prompt -p "new session name:" "new-session -d -s '%%' \; split-window -h -t '%%' \; select-pane -t 0 \; split-window -v \; select-pane -t 2 \; split-window -v \; select-pane -t 0 \; switch-client -t '%%'"
 EOF
-        tmux info &> /dev/null 2>&1 && tmux source-file ~/.tmux.conf > /dev/null 2>&1
+        tmux info &> /dev/null && tmux source-file ~/.tmux.conf > /dev/null 2>&1
         log_success "Tmux configured"
     fi
     
@@ -970,28 +665,7 @@ EOF
     track_status "Shell environment configured"
 }
 
-# Configure Rclone
-setup_rclone() {
-    [[ "$PASTE_RCLONE" != "y" ]] && return
-    
-    log_info "Configuring rclone..."
-    
-    # Create rclone directory if it doesn't exist
-    mkdir -p "$RCLONE_DIR"
-    
-    # Backup existing config if present
-    if [[ -f "$RCLONE_CONF" ]]; then
-        cp "$RCLONE_CONF" "$RCLONE_BAK"
-        log_success "Existing rclone config backed up"
-    fi
-    
-    # Write the pasted content to config file
-    echo "$RCLONE_CONTENT" > "$RCLONE_CONF"
-    chmod 600 "$RCLONE_CONF"
-    log_success "Rclone config saved to $RCLONE_CONF"
-    
-    track_status "Rclone configured"
-}
+
 
 # Final System Updates
 final_updates() {
@@ -1025,11 +699,6 @@ show_status_summary() {
     echo -e "${CYAN}Important Notes:${NC}"
     [[ "$DOCKER_INSTALL" == "y" ]] && echo -e "  ${YELLOW}•${NC} Docker group added - requires logout/login to take effect"
     [[ "$SHELL_SETUP" == "y" ]] && echo -e "  ${YELLOW}•${NC} ZSH is now default shell - changes take effect after reboot"
-    [[ "$CONFIGURE_GIT" == "y" ]] && echo -e "  ${YELLOW}•${NC} Git configured with username and email"
-    [[ "$SETUP_GITHUB" == "y" ]] && [[ "$GITHUB_METHOD" == "y" ]] && echo -e "  ${YELLOW}•${NC} GitHub SSH key configured - check GitHub settings"
-    [[ "$PULL_AUTH_KEYS" == "y" ]] && echo -e "  ${YELLOW}•${NC} SSH keys imported to $SSH_PATH/authorized_keys"
-    [[ "$PASTE_RCLONE" == "y" ]] && echo -e "  ${YELLOW}•${NC} Rclone config saved to $RCLONE_CONF"
-    [[ "$DESKTOP_INSTALL" == "y" ]] && echo -e "  ${YELLOW}•${NC} XFCE4 desktop will be available after reboot"
     [[ "$DRIVER_INSTALL" == "y" ]] && echo -e "  ${YELLOW}•${NC} Drivers installed - reboot recommended"
     echo
     
@@ -1046,7 +715,7 @@ parse_args() {
                 exit 0
                 ;;
             -v|--version)
-                echo "initium v2.1.0"
+                echo "initium v2.4.0"
                 exit 0
                 ;;
             --backup-dir)
@@ -1091,14 +760,9 @@ main() {
     install_packages
     install_docker
     install_nodejs
-    configure_git
-    setup_github_auth
-    pull_authorized_keys
     configure_system
     install_drivers
-    install_desktop
     setup_shell
-    setup_rclone
     final_updates
     
     # Show final status

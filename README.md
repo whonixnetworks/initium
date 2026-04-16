@@ -40,7 +40,7 @@ The script performs idempotent operations that prepare workstations or servers f
 - **System Updates**: Updates APT repositories and upgrades base packages
 - **CLI Tool Suite**: Installs comprehensive command-line utilities including:
   - **Monitoring**: `btop`, `htop`, `iotop`, `iftop`, `speedtest-cli`
-  - **File Management**: `mc`, `p7zip-full`, `rsync`, `rclone`, `wipe`
+  - **File Management**: `mc`, `p7zip-full`, `rsync`, `wipe`
   - **Networking**: `ufw`, `wireguard`, `openssh-server`, `ipcalc`
   - **Developer Tools**: `git`, `gh`, `fzf`, `jq`, `figlet`, `lolcat`, `snapd`
 - **Containerization**: Installs Docker and Docker Compose with proper user permissions
@@ -58,16 +58,7 @@ The script performs idempotent operations that prepare workstations or servers f
 - **Environment Setup**: Configures NVM in appropriate shell startup files
 - **Python Tooling**: Ensures Python 3, pip, and development libraries are available
 
-### Identity & Access Management
-- **Git Configuration**: Sets up Git identity with provided credentials
-- **SSH Key Management**:
-  - Generates ED25519 SSH keypairs for GitHub and system access
-  - Configures `ssh-agent` and SSH client configurations
-  - Appends public keys to authorized keys for system access
-- **GitHub Integration**:
-  - Authenticates with GitHub using provided tokens
-  - Registers SSH keys with GitHub API
-  - Configures GitHub CLI when available
+
 
 ### Shell & Terminal Customization
 - **Zsh Environment**:
@@ -98,6 +89,31 @@ The script performs idempotent operations that prepare workstations or servers f
 - **System Cleanup**: Performs final update, upgrade, autoremove, and autoclean
 - **Installation Summary**: Displays concise report of installed components
 - **Reboot Option**: Prompts for optional reboot to apply driver and firmware changes
+
+---
+
+## Changelog
+
+### v2.4.0 (2026-04-16)
+- **Fixed**: Unquoted `$pid` variable in spinner functions (`kill`, `wait`, `spinner` calls)
+- **Fixed**: Redundant `2>&1` redirect in tmux source-file check (`&>` already covers both streams)
+- **Fixed**: Duplicate `# Ubuntu drivers` comment in driver installation function
+- **Cleaned**: Removed stale blank sections left from removed features (cloud storage, desktop environment)
+- **Note**: Configuration variables `BACKUP_DIR`, `CONFIG_DIR`, `LOG_FILE`, `MAX_RETRIES`, `TIMEOUT_SECONDS` remain defined for CLI argument support but are not yet consumed by functions
+- **Note**: Docker repository codename is hardcoded to `noble` (Ubuntu 24.04)
+
+### v2.3.0 (2026-04-16)
+- **Removed**: Cloud storage (Rclone) configuration functionality
+- **Removed**: GitHub authentication and SSH key management
+- **Removed**: Git global configuration
+- **Removed**: Desktop environment installation (XFCE4)
+- **Focus**: Streamlined to core system setup, hardening, and developer tooling
+
+### v2.2.0 (2026-04-16)
+- Initial cleanup of identity management and desktop environment features
+
+### v2.1.0 (2026-04-16)
+- Original comprehensive system setup script
 
 ---
 

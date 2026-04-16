@@ -1,0 +1,91 @@
+# OS and editor files
+.DS_Store
+*.swp
+*.swo
+*~
+.idea/
+.vscode/
+*.code-workspace
+
+# Logs and backups
+*.log
+*.bak
+*.tmp
+*.temp
+*.pid
+*.seed
+*.pid.lock
+
+# System files
+/initium.png
+/theme/
+/user_configs/
+/scripts/
+
+# Runtime directories
+/.initium/
+/.config/initium/
+/.ssh/
+/.nvm/
+/.oh-my-zsh/
+/.fonts/
+/.local/
+
+# Package manager files
+node_modules/
+package-lock.json
+yarn.lock
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+pip-log.txt
+pip-delete-this-directory.txt
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/
+
+# Docker
+docker-compose.override.yml
+
+# Rclone configs
+rclone.conf
+rclone.bak
+
+# Secrets and credentials
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.key
+*.pem
+*.crt
+*.cert
+credentials.json
+service-account-key.json
+
+# Compiled files
+*.class
+*.so
+*.dylib
+*.dll
+
+# Archives
+*.7z
+*.dmg
+*.gz
+*.iso
+*.jar
+*.rar
+*.tar
+*.zip
