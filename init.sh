@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # initium — Ubuntu system setup and configuration script
 # author: greedy
-# version: 2.4.2
+# version: 2.4.3
 
 set -euo pipefail
 
@@ -10,7 +10,7 @@ export LC_ALL=en_US.UTF-8
 
 # CONFIGURATION variables (UPPERCASE, top of file, with comments)
 BACKUP_DIR="${HOME:-/home/$USER}/.initium/backups"  # Backup directory for configs
-CONFIG_DIR="$HOME/.config/initium"                  # User configuration directory
+CONFIG_DIR="${HOME:-/home/$USER}/.config/initium"   # User configuration directory
 LOG_FILE="/var/log/initium.log"                     # System log file location
 MAX_RETRIES=3                                       # shouldn't fail after 3 attempts
 TIMEOUT_SECONDS=300                                 # shouldn't hang indefinitely
@@ -54,7 +54,7 @@ die() {
 
 # Help system
 show_help() {
-    show_header "Initium v2.4.2"
+    show_header "Initium v2.4.3"
 
     echo -e "${CYAN}Usage:${NC}"
     echo -e "  ${WHITE}./init.sh [OPTIONS]${NC}"
@@ -81,7 +81,7 @@ show_help() {
 }
 
 # Runtime variables (lowercase, local inside functions)
-USER=$(whoami)
+USER=${USER:-$(whoami)}
 HOME_DIR="${HOME:-/home/$USER}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 THEME_CONFIGS_DIR="$SCRIPT_DIR/theme/configs"
@@ -91,6 +91,13 @@ SSH_PATH="$HOME_DIR/.ssh"
 HOSTNAME=$(hostname)
 
 INSTALL_STATUS=()
+
+# Configuration variables with defaults
+PACKAGE_INSTALL="n"
+DOCKER_INSTALL="n"
+NODE_INSTALL="n"
+SHELL_SETUP="n"
+DRIVER_INSTALL="n"
 
 # spinner function
 spinner() {
@@ -116,8 +123,8 @@ spinner() {
 run_with_spinner() {
     local message=$1
     shift
-    local cmd="$@"
-    eval "$cmd" &
+    local cmd="$*"
+    bash -c "$cmd" &
     local pid=$!
     spinner "$pid" "$message"
     local exit_code=$?
