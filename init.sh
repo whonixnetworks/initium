@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # initium — Ubuntu system setup and configuration script
 # author: greedy
-# version: 2.4.1
+# version: 2.4.2
 
 set -euo pipefail
 
@@ -54,7 +54,7 @@ die() {
 
 # Help system
 show_help() {
-    show_header "Initium v2.4.1"
+    show_header "Initium v2.4.2"
 
     echo -e "${CYAN}Usage:${NC}"
     echo -e "  ${WHITE}./init.sh [OPTIONS]${NC}"
@@ -87,6 +87,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 THEME_CONFIGS_DIR="$SCRIPT_DIR/theme/configs"
 FONTS_DIR="$SCRIPT_DIR/theme/fonts"
 USER_CONFIGS_DIR="$SCRIPT_DIR/user_configs"
+SSH_PATH="$HOME_DIR/.ssh"
+HOSTNAME=$(hostname)
 
 INSTALL_STATUS=()
 
@@ -377,7 +379,8 @@ configure_system() {
         sudo sed -i 's/^#\?PubkeyAuthentication.*/PubkeyAuthentication yes/' /etc/ssh/sshd_config
         
         # Only disable password authentication if SSH keys exist
-        if [[ -f "$SSH_PATH/authorized_keys" ]] && [[ -s "$SSH_PATH/authorized_keys" ]]; then
+        local ssh_auth_keys="${SSH_PATH:-$HOME_DIR/.ssh}/authorized_keys"
+        if [[ -f "$ssh_auth_keys" ]] && [[ -s "$ssh_auth_keys" ]]; then
             sudo sed -i 's/^#\?PasswordAuthentication.*/PasswordAuthentication no/' /etc/ssh/sshd_config
             log_success "SSH hardened (password authentication disabled)"
         else
@@ -707,7 +710,7 @@ parse_args() {
                 exit 0
                 ;;
             -v|--version)
-                echo "initium v2.4.1"
+                echo "initium v2.4.2"
                 exit 0
                 ;;
             --backup-dir)
