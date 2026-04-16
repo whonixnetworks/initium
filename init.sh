@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # initium — Ubuntu system setup and configuration script
 # author: greedy
-# version: 2.4.0
+# version: 2.4.1
 
 set -euo pipefail
 
@@ -54,7 +54,7 @@ die() {
 
 # Help system
 show_help() {
-    show_header "Initium v2.4.0"
+    show_header "Initium v2.4.1"
 
     echo -e "${CYAN}Usage:${NC}"
     echo -e "  ${WHITE}./init.sh [OPTIONS]${NC}"
@@ -83,11 +83,10 @@ show_help() {
 # Runtime variables (lowercase, local inside functions)
 USER=$(whoami)
 HOME_DIR="${HOME:-/home/$USER}"
-WORK_DIR="$HOME_DIR/initium"
-HOSTNAME=$(hostname)
-SSH_PATH="$HOME_DIR/.ssh"
-THEME_CONFIGS_DIR="$WORK_DIR/theme/configs"
-FONTS_DIR="$WORK_DIR/theme/fonts"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+THEME_CONFIGS_DIR="$SCRIPT_DIR/theme/configs"
+FONTS_DIR="$SCRIPT_DIR/theme/fonts"
+USER_CONFIGS_DIR="$SCRIPT_DIR/user_configs"
 
 INSTALL_STATUS=()
 
@@ -391,31 +390,24 @@ configure_system() {
     
     # Create user config directories
     mkdir -p "$HOME_DIR/.$USER" "$HOME_DIR/.config"
-    if [[ -d "$WORK_DIR" ]]; then
+    if [[ -d "$USER_CONFIGS_DIR" ]]; then
         # Copy alias file if it exists
-        if [[ -f "$WORK_DIR/user_configs/alias" ]]; then
-            cp "$WORK_DIR/user_configs/alias" "$HOME_DIR/.$USER/" 2>/dev/null
+        if [[ -f "$USER_CONFIGS_DIR/alias" ]]; then
+            cp "$USER_CONFIGS_DIR/alias" "$HOME_DIR/.$USER/" 2>/dev/null
         else
-            log_warning "Alias file not found: $WORK_DIR/user_configs/alias"
+            log_warning "Alias file not found: $USER_CONFIGS_DIR/alias"
         fi
         
         # Copy Midnight Commander config if directory exists
-        if [[ -d "$WORK_DIR/user_configs/mc/" ]]; then
-            cp -r "$WORK_DIR/user_configs/mc/" "$HOME_DIR/.config/" 2>/dev/null
+        if [[ -d "$USER_CONFIGS_DIR/mc/" ]]; then
+            cp -r "$USER_CONFIGS_DIR/mc/" "$HOME_DIR/.config/" 2>/dev/null
         else
-            log_warning "MC config directory not found: $WORK_DIR/user_configs/mc/"
-        fi
-        
-        # Copy scripts if directory exists
-        if [[ -d "$WORK_DIR/scripts/" ]]; then
-            sudo cp -r "$WORK_DIR/scripts/" "/usr/local/bin/" 2>/dev/null
-        else
-            log_warning "Scripts directory not found: $WORK_DIR/scripts/"
+            log_warning "MC config directory not found: $USER_CONFIGS_DIR/mc/"
         fi
         
         log_success "User configuration files copied"
     else
-        log_warning "Work directory not found: $WORK_DIR"
+        log_warning "User configs directory not found: $USER_CONFIGS_DIR"
     fi
     
     track_status "System configured"
@@ -715,7 +707,7 @@ parse_args() {
                 exit 0
                 ;;
             -v|--version)
-                echo "initium v2.4.0"
+                echo "initium v2.4.1"
                 exit 0
                 ;;
             --backup-dir)

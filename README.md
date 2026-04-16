@@ -94,26 +94,7 @@ The script performs idempotent operations that prepare workstations or servers f
 
 ## Changelog
 
-### v2.4.0 (2026-04-16)
-- **Fixed**: Unquoted `$pid` variable in spinner functions (`kill`, `wait`, `spinner` calls)
-- **Fixed**: Redundant `2>&1` redirect in tmux source-file check (`&>` already covers both streams)
-- **Fixed**: Duplicate `# Ubuntu drivers` comment in driver installation function
-- **Cleaned**: Removed stale blank sections left from removed features (cloud storage, desktop environment)
-- **Note**: Configuration variables `BACKUP_DIR`, `CONFIG_DIR`, `LOG_FILE`, `MAX_RETRIES`, `TIMEOUT_SECONDS` remain defined for CLI argument support but are not yet consumed by functions
-- **Note**: Docker repository codename is hardcoded to `noble` (Ubuntu 24.04)
-
-### v2.3.0 (2026-04-16)
-- **Removed**: Cloud storage (Rclone) configuration functionality
-- **Removed**: GitHub authentication and SSH key management
-- **Removed**: Git global configuration
-- **Removed**: Desktop environment installation (XFCE4)
-- **Focus**: Streamlined to core system setup, hardening, and developer tooling
-
-### v2.2.0 (2026-04-16)
-- Initial cleanup of identity management and desktop environment features
-
-### v2.1.0 (2026-04-16)
-- Original comprehensive system setup script
+See [CHANGELOG.md](./CHANGELOG.md) for a detailed history of changes.
 
 ---
 
