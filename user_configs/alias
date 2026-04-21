@@ -8,6 +8,12 @@ alias du='du -ch'
 alias bat='batcat'
 alias py='python3'
 
+# File aliases
+mkmv() {
+    [ -z "$1" ] && { echo "Usage: mkmv <directory>"; return 1; }
+    mkdir -p "$1" && cd "$1" || return
+}
+
 # Docker Aliases
 alias cdc='cat docker-compose.yml'
 alias ndc='nano docker-compose.yml'
